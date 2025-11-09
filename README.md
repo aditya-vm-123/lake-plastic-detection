@@ -1,6 +1,15 @@
 # Lake Plastic Detection (FastAPI Web App)
 
+
 A local prototype web app for detecting floating plastic in lake images using object detection models (YOLOv8 / YOLOv11 / Faster R-CNN). Users can upload images, view detections (bounding boxes + per-class counts), and optionally save crowd-sourced images with location metadata.
+
+---
+
+## Preview
+
+<img src="https://github.com/user-attachments/assets/03b9dbf9-ffa2-414b-b47b-021a4155bbfd">
+<img src="https://github.com/user-attachments/assets/21f52101-95e9-4c39-9018-d353471a6d26">
+<img src="https://github.com/user-attachments/assets/ccec4329-e93a-413c-b52e-e71199a2e0a5">
 
 ---
 
@@ -201,19 +210,5 @@ git commit -m "Track model files with git-lfs"
 * **Permissions errors saving uploads:** Ensure the `plastic_web2/crowd_sourced_images/` folder exists and is writable.
 * **Slow predictions on CPU:** Use a GPU or move to smaller YOLO model (yolov8n) for faster inference on CPU.
 * **gdown fails with folder URL:** download manually from Drive via browser.
-
----
-
-## Testing endpoints (example curl)
-
-If your backend exposes `/predict` (adjust to your actual route):
-
-```bash
-curl -X POST "http://127.0.0.1:8000/predict" \
-  -F "file=@/path/to/image.jpg" \
-  -H "accept: application/json"
-```
-
-(Adjust `app.py` endpoint names as needed if `/predict` is different.)
 
 ---
