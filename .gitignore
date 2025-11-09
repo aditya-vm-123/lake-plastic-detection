@@ -1,0 +1,26 @@
+# Ignore Python artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.pkl
+*.log
+
+# Ignore environments
+env/
+venv/
+.venv/
+
+# VSCode & system
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Model weights
+*.pt
+*.pth
+
+# Crowd-sourced data (if dynamic)
+crowd_sourced_images/
+
+# Ignore node_modules if any JS tools added
+node_modules/

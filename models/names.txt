@@ -1,0 +1,7 @@
+other_plastic_trash
+plastic_bag
+plastic_bottle
+plastic_container
+plastic_cup
+plastic_wrapper
+thermocol

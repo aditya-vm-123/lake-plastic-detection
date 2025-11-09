@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Plastic Detector + Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+
+  <!-- Your existing CSS (unchanged) + a tiny style for map search and layout -->
+  <link rel="stylesheet" href="/static/style.css?v=4" />
+  <style>
+    .map-search{
+      position:absolute; z-index:1000; top:10px; left:10px;
+      background:#fff; border:1px solid #e5e7eb; border-radius:8px;
+      padding:6px; box-shadow:0 2px 8px rgba(0,0,0,.08); display:flex; gap:6px;
+    }
+    .map-search input{ width:260px; padding:6px 8px; border:1px solid #e5e7eb; border-radius:6px; }
+    .map-search button{ padding:6px 10px; border:1px solid #e5e7eb; border-radius:6px; cursor:pointer; }
+    .topbar{ display:flex; align-items:center; padding:10px 14px; border-bottom:1px solid #e5e7eb; }
+    .topbar .spacer{ flex:1 }
+    .mini{ font-size:.9em; color:#555 }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    .split{ display:flex; height:calc(100vh - 56px); }
+    .pane.left{ width:520px; min-width:300px; overflow:auto; padding:12px; }
+    .pane.right{ flex:1; position:relative; }
+    .gutter{ width:6px; cursor:col-resize; background:#f3f4f6; }
+    @media (max-width: 1024px){
+      .split{ flex-direction:column; }
+      .pane.left{ width:auto; height:56vh; }
+      .gutter{ height:6px; width:auto; cursor:row-resize; }
+    }
+    #map{ position:absolute; inset:0; }
+    .card{ border:1px solid #e5e7eb; border-radius:10px; padding:12px; margin:12px 0; background:#fff; }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .primary{ background:#2563eb; color:#fff; border:0; padding:8px 12px; border-radius:8px; }
+    .danger{ background:#ef4444; color:#fff; border:0; padding:8px 12px; border-radius:8px; }
+    .muted{ color:#6b7280; text-decoration:none; }
+    .preview-wrap{ position:relative; max-width:100%; }
+    #img_preview{ max-width:100%; display:block; }
+    #overlay{ position:absolute; left:0; top:0; }
+    #delete_mode_btn.active{ background:#dc2626; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <h1>Plastic Detector</h1>
+    <div class="spacer"></div>
+    <span id="status" class="mini">Ready</span>
+    <a id="resetLayout" class="muted" href="#" style="margin-left:12px">Reset layout</a>
+  </header>
+
+  <div class="split">
+    <section class="pane left" id="leftPane">
+      <div class="card">
+        <h3>1) Upload image</h3>
+        <input id="img_input" type="file" accept="image/*" />
+        <div class="row">
+          <label>Confidence/Score
+            <input id="conf_slider" type="range" min="0.1" max="0.9" step="0.05" value="0.30" />
+            <span id="conf_val">0.30</span>
+          </label>
+          <button id="predict_btn" class="primary">Run Detection</button>
+        </div>
+        <div class="row">
+          <span id="exif_status" class="mini">EXIF: –</span>
+          <button id="use_exif_btn">Use EXIF</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>2) Preview & Detections</h3>
+        <div class="preview-wrap">
+          <img id="img_preview" alt="preview" />
+          <canvas id="overlay" style="pointer-events:none"></canvas>
+        </div>
+        <div id="det_counts" class="mini mono"></div>
+      </div>
+
+      <div class="card">
+        <h3>3) Location & Map Blob</h3>
+        <div class="grid2">
+          <label>Latitude <input id="lat_input" type="number" step="0.000001"></label>
+          <label>Longitude <input id="lng_input" type="number" step="0.000001"></label>
+        </div>
+        <div class="grid2">
+          <label>Total Count <input id="count_input" type="number" min="0" step="1" value="0"></label>
+          <label>Label (optional) <input id="label_input" type="text" placeholder="e.g. beach"></label>
+        </div>
+        <div class="row">
+          <button id="pick_map_btn">Pick on Map</button>
+          <button id="mark_btn" class="primary">Add Map Blob</button>
+          <button id="delete_mode_btn" class="danger">Delete mode</button>
+          <button id="clear_btn" class="danger">Clear Local Markers</button>
+        </div>
+        <div class="mini">Pick on Map → click map (right pane). EXIF (if present) can auto-fill.</div>
+      </div>
+
+      <div class="card">
+        <h3>4) Contribute (Crowd Sourcing)</h3>
+        <p class="mini">Help improve the dataset. Location is required (uses EXIF if available, otherwise the Latitude/Longitude you set above).</p>
+        <div class="row">
+          <input id="crowd_input" type="file" accept="image/*" />
+          <button id="crowd_submit" class="primary">Upload</button>
+        </div>
+        <div id="crowd_status" class="mini"></div>
+      </div>
+    </section>
+
+    <div class="gutter" id="gutter" title="Drag to resize"></div>
+
+    <section class="pane right" id="rightPane">
+      <!-- Search bar -->
+      <div class="map-search" style="margin-left: 2.5rem;">
+        <input id="map_search_input" type="text" placeholder="Search a place (e.g., Delhi, India)" />
+        <button id="map_search_btn" title="Search">🔎</button>
+      </div>
+      <div id="map"></div>
+    </section>
+  </div>
+
+  <!-- Leaflet + EXIF -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/full.umd.min.js"></script>
+
+  <!-- App JS (cache-busted) -->
+  <script src="/static/app.js?v=9"></script>
+</body>
+</html>
